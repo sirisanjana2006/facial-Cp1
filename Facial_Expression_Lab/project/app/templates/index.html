@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Facial Expression Lab — CNN + Attention on CK+</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,380..700;1,9..144,380..600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark" aria-hidden="true"></span>
+      Facial Expression Lab
+    </a>
+    <nav class="nav-links">
+      <a href="#try-it">Try it</a>
+      <a href="#pipeline">How it works</a>
+      <a href="#results">Results</a>
+      <a href="#dataset">Dataset</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ============================================================ -->
+  <!-- HERO -->
+  <!-- ============================================================ -->
+  <section class="hero" id="try-it">
+    <div class="hero-inner">
+
+      <div class="hero-copy">
+        <p class="kicker">CK+ Extended · 8-class facial expression model</p>
+        <h1>Teaching a model to read a face</h1>
+        <p class="lede">
+          A convolutional network learns what anger, contempt, or surprise
+          look like from a 48&times;48 grayscale photo. A lightweight channel
+          attention layer sits on top, learning which of the network's own
+          features to trust more before making a call.
+        </p>
+        <ul class="fact-list">
+          <li><strong>8</strong> expressions recognized</li>
+          <li><strong>48&times;48</strong> px input, grayscale</li>
+          <li><strong>CLAHE</strong> contrast normalization before every prediction</li>
+        </ul>
+      </div>
+
+      <div class="hero-demo">
+        <div class="demo-panel">
+
+          <div class="dropzone" id="dropzone" tabindex="0" role="button"
+               aria-label="Upload a face photo">
+            <input type="file" id="file-input" accept="image/*" hidden>
+            <div class="dropzone-content" id="dropzone-empty">
+              <p class="dropzone-title">Drop a face photo here</p>
+              <p class="dropzone-sub">or click to choose a file</p>
+            </div>
+            <img id="preview-image" class="preview-image" alt="" hidden>
+          </div>
+
+          <button class="predict-btn" id="predict-btn" disabled>
+            Read the expression
+          </button>
+
+          <div class="result" id="result" hidden>
+            <div class="result-headline">
+              <span class="result-label">Predicted</span>
+              <span class="result-emotion" id="result-emotion">—</span>
+              <span class="result-confidence" id="result-confidence"></span>
+            </div>
+            <ul class="prob-list" id="prob-list"></ul>
+          </div>
+
+          <p class="demo-error" id="demo-error" hidden></p>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- PIPELINE -->
+  <!-- ============================================================ -->
+  <section class="pipeline" id="pipeline">
+    <div class="section-inner">
+      <h2>What happens to a photo</h2>
+      <p class="section-lede">
+        Five steps run between an uploaded photo and a predicted emotion,
+        in this order:
+      </p>
+
+      <ol class="pipeline-steps">
+        <li>
+          <span class="step-number">01</span>
+          <div>
+            <h3>Read as grayscale</h3>
+            <p>Color is discarded — expression is read from shape and shading, not skin tone or lighting color.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-number">02</span>
+          <div>
+            <h3>CLAHE contrast normalization</h3>
+            <p>Adaptive histogram equalization evens out lighting differences across photos, so a dim photo and a bright one land on comparable footing.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-number">03</span>
+          <div>
+            <h3>Three convolution blocks</h3>
+            <p>Stacked 3&times;3 convolutions with batch normalization build up from edges and creases to larger structures like a furrowed brow or a raised lip corner.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-number">04</span>
+          <div>
+            <h3>Channel attention</h3>
+            <p>A small side network looks at the feature map as a whole and re-weights each channel — turning up the features that matter for this particular face, turning down the ones that don't.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-number">05</span>
+          <div>
+            <h3>Softmax over eight classes</h3>
+            <p>The network outputs a probability for each of the eight expressions; the highest one is the prediction shown above.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- RESULTS -->
+  <!-- ============================================================ -->
+  <section class="results" id="results">
+    <div class="section-inner">
+      <h2>Baseline vs. attention</h2>
+      <p class="section-lede" id="results-lede">
+        Comparing a plain CNN against the same network with channel
+        attention added, on the same held-out test set.
+      </p>
+
+      <div id="results-content" class="results-content" hidden>
+
+        <div class="compare-bars">
+          <div class="compare-row">
+            <span class="compare-label">Baseline CNN</span>
+            <div class="compare-track">
+              <div class="compare-fill compare-fill--baseline" id="bar-baseline"></div>
+            </div>
+            <span class="compare-value" id="value-baseline"></span>
+          </div>
+          <div class="compare-row">
+            <span class="compare-label">CNN + Attention</span>
+            <div class="compare-track">
+              <div class="compare-fill compare-fill--attention" id="bar-attention"></div>
+            </div>
+            <span class="compare-value" id="value-attention"></span>
+          </div>
+        </div>
+
+        <p class="agreement-note" id="agreement-note"></p>
+
+        <h3 class="per-class-title">Accuracy by expression</h3>
+        <ul class="per-class-list" id="per-class-list"></ul>
+
+      </div>
+
+      <p class="results-empty" id="results-empty">
+        Run <code>train_CNN.py</code>, <code>CNN_Attention_improved.py</code>,
+        then <code>generate_dashboard_data.py</code> to populate this section
+        with your own results.
+      </p>
+
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- DATASET -->
+  <!-- ============================================================ -->
+  <section class="dataset" id="dataset">
+    <div class="section-inner">
+      <h2>The dataset behind it</h2>
+      <p class="section-lede">
+        CK+ Extended: posed and spontaneous facial expressions, labeled
+        into eight categories. Some categories, like contempt, are
+        naturally rarer than others — the chart below shows how the
+        training set actually splits.
+      </p>
+
+      <div id="dataset-content" class="dataset-content" hidden>
+        <ul class="dist-list" id="dist-list"></ul>
+      </div>
+
+      <p class="results-empty" id="dataset-empty">
+        Dataset distribution will appear here once
+        <code>generate_dashboard_data.py</code> has been run.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="section-inner footer-inner">
+    <p>Facial Expression Lab — CNN + channel attention, trained on CK+ Extended.</p>
+    <p class="footer-note">Predictions run locally on your machine. Nothing you upload leaves this server.</p>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
